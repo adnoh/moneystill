@@ -43,7 +43,7 @@ migrate((app) => {
     monthly_values.fields.add(new RelationField({ name: "category", required: true, collectionId: CAT_ID, maxSelect: 1, cascadeDelete: true }));
     monthly_values.fields.add(new NumberField({ name: "year", required: true }));
     monthly_values.fields.add(new NumberField({ name: "month", required: true }));
-    monthly_values.fields.add(new NumberField({ name: "amount", required: true }));
+    monthly_values.fields.add(new NumberField({ name: "amount" }));
     monthly_values.fields.add(new RelationField({ name: "user", required: true, collectionId: "_pb_users_auth_", maxSelect: 1, cascadeDelete: true }));
     app.save(monthly_values);
 
@@ -77,7 +77,7 @@ migrate((app) => {
     scenario_values.fields.add(new RelationField({ name: "category", required: true, collectionId: CAT_ID, maxSelect: 1, cascadeDelete: true }));
     scenario_values.fields.add(new NumberField({ name: "year", required: true }));
     scenario_values.fields.add(new NumberField({ name: "month", required: true }));
-    scenario_values.fields.add(new NumberField({ name: "amount", required: true }));
+    scenario_values.fields.add(new NumberField({ name: "amount" }));
     scenario_values.fields.add(new RelationField({ name: "user", required: true, collectionId: "_pb_users_auth_", maxSelect: 1, cascadeDelete: true }));
     app.save(scenario_values);
 
