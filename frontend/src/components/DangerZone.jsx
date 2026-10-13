@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { AlertCircle, Download, Upload, Loader2, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Download, Upload, Loader2, CheckCircle2, X } from 'lucide-react';
 import DeleteAccountModal from './DeleteAccountModal';
 import { pb } from '../lib/pocketbase';
 import { exportUserData, importUserData, downloadJson } from '../utils/importExportUtils';
@@ -8,6 +8,15 @@ import { useAuth } from '../context/AuthContext';
 export default function DangerZone() {
     const { isSubscriptionActive } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    // New state for import settings modal
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [skipCategories, setSkipCategories] = useState(false);
+    const [importValues, setImportValues] = useState(true);
+    const [importScenarios, setImportScenarios] = useState(true);
+    const [overwriteYear, setOverwriteYear] = useState(new Date().getFullYear());
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -53,14 +62,26 @@ export default function DangerZone() {
         }
     };
 
+    // Opens filedialog if clicked on "Import"
     const handleImportClick = () => {
         fileInputRef.current?.click();
     };
 
-    const handleFileChange = async (e) => {
+    // If file selected, open settings modal
+    const handleFileChange = (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        setSelectedFile(file);
+        setIsImportModalOpen(true);
+        // reset Input-value, so selected file can be choosen again (if necesarry)
+        e.target.value = '';
+    };
 
+    // actual import process after confirming the settings modal
+    const handleConfirmImport = async () => {
+        if (!selectedFile) return;
+
+        setIsImportModalOpen(false);
         setIsImporting(true);
         setError(null);
         setShowSuccess(false);
@@ -71,13 +92,20 @@ export default function DangerZone() {
         reader.onload = async (event) => {
             try {
                 const json = JSON.parse(event.target.result);
-                await importUserData(json, (msg, progress) => {
-                    setImportMessage(msg);
-                    setImportProgress(progress);
-                });
+                await importUserData(
+                    json, 
+                    {
+                        skipCategories,
+                        importValues,
+                        importScenarios,
+                        overwriteYear: overwriteYear ? Number(overwriteYear) : null
+                    }, 
+                    (msg, progress) => {
+                        setImportMessage(msg);
+                        setImportProgress(progress);
+                    }
+                );
                 setShowSuccess(true);
-                // Reset file input
-                e.target.value = '';
                 // Reload after a delay to show success
                 setTimeout(() => {
                     window.location.reload();
@@ -92,7 +120,7 @@ export default function DangerZone() {
             setError('Error reading the file.');
             setIsImporting(false);
         };
-        reader.readAsText(file);
+        reader.readAsText(selectedFile);
     };
 
     return (
@@ -232,6 +260,95 @@ export default function DangerZone() {
                 onConfirm={handleDeleteAccount}
                 loading={loading}
             />
+
+            {/* NEW IMPORT-SETTINGS-MODAL */}
+            {isImportModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                                <Upload className="w-5 h-5 text-blue-500" />
+                                Import Options
+                            </h3>
+                            <button 
+                                onClick={() => setIsImportModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 text-sm">
+                            <p className="text-slate-500 dark:text-slate-400">
+                                Configure how data from <span className="font-medium text-slate-700 dark:text-slate-300">{selectedFile?.name}</span> should be imported:
+                            </p>
+
+                            <div className="space-y-3 pt-2">
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={skipCategories}
+                                        onChange={(e) => setSkipCategories(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300 font-medium">Skip categories</span>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={importValues}
+                                        onChange={(e) => setImportValues(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300 font-medium">Import values</span>
+                                </label>
+
+                                <label className="flex items-center gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={importScenarios}
+                                        onChange={(e) => setImportScenarios(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                                    />
+                                    <span className="text-slate-700 dark:text-slate-300 font-medium">Import scenarios</span>
+                                </label>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <label className="block text-slate-700 dark:text-slate-300 font-medium mb-1">
+                                    Overwrite Year
+                                </label>
+                                <input
+                                    type="number"
+                                    value={overwriteYear}
+                                    onChange={(e) => setOverwriteYear(e.target.value)}
+                                    placeholder="e.g. 2026"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-transparent text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">
+                                    All imported scenarios and values will be assigned to this year.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <button
+                                onClick={() => setIsImportModalOpen(false)}
+                                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium text-sm transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmImport}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm shadow-sm hover:shadow-md transition-all"
+                            >
+                                Start Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
